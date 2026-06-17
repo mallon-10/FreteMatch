@@ -110,13 +110,18 @@ export default function Dashboard() {
 
         {/* Calculadora */}
         <Card>
-          <h2 className="text-sm text-gray-400 mb-4">Calcular frete</h2>
+          <h2 className="text-sm text-gray-400 mb-1">Calcular frete</h2>
+          <p className="text-xs text-gray-600 mb-4">Origem: São Bento do Sul / SC</p>
           <form onSubmit={calcular} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">CEP destino</label>
+              <label className="text-xs text-gray-500 mb-1 block">CEP de destino</label>
               <input
                 value={form.cep_destino}
-                onChange={(e) => setForm({ ...form, cep_destino: e.target.value })}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 8);
+                  const fmt = v.length > 5 ? `${v.slice(0, 5)}-${v.slice(5)}` : v;
+                  setForm({ ...form, cep_destino: fmt });
+                }}
                 placeholder="00000-000"
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
                 required
