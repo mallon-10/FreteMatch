@@ -24,42 +24,131 @@ export default function Login() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-white mb-1">FreteMatch</h1>
-        <p className="text-gray-400 text-sm mb-6">Acesse sua conta</p>
+  const inputStyle = {
+    width: '100%',
+    backgroundColor: '#0f172a',
+    border: '1px solid #334155',
+    borderRadius: 10,
+    padding: '12px 16px',
+    fontSize: 14,
+    color: '#f1f5f9',
+    outline: 'none',
+    boxSizing: 'border-box',
+    transition: 'border-color 0.2s',
+  };
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
-              required
-            />
+  return (
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#0f172a',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: 'system-ui, sans-serif',
+      padding: 24,
+    }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+
+        {/* Logo / Header */}
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 56,
+            height: 56,
+            backgroundColor: '#2563eb',
+            borderRadius: 16,
+            marginBottom: 16,
+          }}>
+            <span style={{ fontSize: 24 }}>🚛</span>
           </div>
-          <div>
-            <label className="text-sm text-gray-400 mb-1 block">Senha</label>
-            <input
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-          {erro && <p className="text-red-400 text-sm">{erro}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg py-2.5 text-sm font-medium transition"
-          >
-            {loading ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>FreteMatch</h1>
+          <p style={{ fontSize: 14, color: '#64748b', marginTop: 6 }}>Faça login para acessar o painel</p>
+        </div>
+
+        {/* Card */}
+        <div style={{
+          backgroundColor: '#1e293b',
+          border: '1px solid #334155',
+          borderRadius: 20,
+          padding: 32,
+        }}>
+          <form onSubmit={handleSubmit}>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, color: '#94a3b8', display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu@email.com.br"
+                required
+                style={inputStyle}
+                onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                onBlur={(e) => e.target.style.borderColor = '#334155'}
+              />
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: 13, color: '#94a3b8', display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                Senha
+              </label>
+              <input
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="••••••••"
+                required
+                style={inputStyle}
+                onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                onBlur={(e) => e.target.style.borderColor = '#334155'}
+              />
+            </div>
+
+            {erro && (
+              <div style={{
+                backgroundColor: '#450a0a',
+                border: '1px solid #7f1d1d',
+                borderRadius: 10,
+                padding: '10px 14px',
+                fontSize: 13,
+                color: '#fca5a5',
+                marginBottom: 20,
+              }}>
+                {erro}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                backgroundColor: loading ? '#1d4ed8' : '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 10,
+                padding: '13px 0',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1,
+                transition: 'background-color 0.2s',
+              }}
+            >
+              {loading ? 'Entrando...' : 'Entrar'}
+            </button>
+
+          </form>
+        </div>
+
+        <p style={{ textAlign: 'center', fontSize: 12, color: '#475569', marginTop: 24 }}>
+          FreteMatch © {new Date().getFullYear()}
+        </p>
+
       </div>
     </div>
   );
