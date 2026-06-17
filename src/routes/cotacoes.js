@@ -86,29 +86,40 @@ router.get('/resumo', async (req, res) => {
 });
 
 // POST /cotacoes/calcular — calcula frete sem salvar (para testar)
+// Aceita uf_destino diretamente (resolvido pelo frontend via ViaCEP) ou cep_destino
 router.post('/calcular', async (req, res) => {
   try {
     const { tenant_id } = req.usuario;
-    const { cep_destino, peso_kg, valor_nf, nome_regiao } = req.body;
+    const { cep_destino, uf_destino, cidade_destino, peso_kg, valor_nf, nome_regiao } = req.body;
 
-    if (!cep_destino || !peso_kg) {
-      return res.status(400).json({ erro: 'cep_destino e peso_kg são obrigatórios' });
+    if ((!cep_destino && !uf_destino) || !peso_kg) {
+      return res.status(400).json({ erro: 'uf_destino (ou cep_destino) e peso_kg são obrigatórios' });
     }
 
-    const dadosCep = await buscarCep(cep_destino);
+    let uf = uf_destino;
+    let cidade = cidade_destino || '';
+    let cep = cep_destino || '';
+
+    if (!uf && cep_destino) {
+      const dadosCep = await buscarCep(cep_destino);
+      uf = dadosCep.uf;
+      cidade = dadosCep.cidade;
+      cep = dadosCep.cep;
+    }
+
     const pesoG = Math.round(parseFloat(peso_kg) * 1000);
     const valorNfCentavos = valor_nf ? Math.round(parseFloat(valor_nf) * 100) : 0;
 
     const resultado = await calcularFrete({
       tenantId: tenant_id,
       pesoG,
-      ufDestino: dadosCep.uf,
+      ufDestino: uf,
       nomeRegiao: nome_regiao,
       valorNfCentavos,
     });
 
     res.json({
-      destino: { cep: dadosCep.cep, cidade: dadosCep.cidade, uf: dadosCep.uf },
+      destino: { cep, cidade, uf },
       peso_kg: parseFloat(peso_kg),
       regiao: resultado.regiao_nome,
       prazo: resultado.resumo.prazo,
