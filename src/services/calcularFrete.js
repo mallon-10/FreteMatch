@@ -105,12 +105,12 @@ export async function calcularFrete({ tenantId, pesoG, ufDestino, nomeRegiao, va
     taxa_despacho_centavos: taxaDespachoCentavos,
     valor_total_centavos: totalCentavos,
     resumo: {
-      frete_peso: `R$ ${(fretePesoCentavos / 100).toFixed(2)}`,
-      ad_valorem: `R$ ${(adValoremCentavos / 100).toFixed(2)}`,
-      gris: `R$ ${(grisCentavos / 100).toFixed(2)}`,
-      pedagio: `R$ ${(pedagogioCentavos / 100).toFixed(2)}`,
-      taxa_despacho: `R$ ${(taxaDespachoCentavos / 100).toFixed(2)}`,
-      total: `R$ ${(totalCentavos / 100).toFixed(2)}`,
+      frete_peso: `R$ ${(fretePesoCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      ad_valorem: `R$ ${(adValoremCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      gris: `R$ ${(grisCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      pedagio: `R$ ${(pedagogioCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      taxa_despacho: `R$ ${(taxaDespachoCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      total: `R$ ${(totalCentavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       prazo: `${regiao.prazo_min_dias} a ${regiao.prazo_max_dias} dias úteis`,
     },
   };
