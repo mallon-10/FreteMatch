@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── PLANOS ───────────────────────────────────────────────────────────────────
+
+model Plano {
+  id               String    @id @default(cuid())
+  nome             String
+  limite_mensal    Int
+  preco_centavos   Int
+  ativo            Boolean   @default(true)
+  criado_em        DateTime  @default(now())
+
+  tenants          Tenant[]
+}
+
+// ─── TENANTS (transportadoras) ────────────────────────────────────────────────
+
+model Tenant {
+  id                   String    @id @default(cuid())
+  nome                 String
+  cnpj                 String    @unique
+  email                String    @unique
+  telefone_responsavel String
+  slug                 String    @unique
+  ativo                Boolean   @default(true)
+  criado_em            DateTime  @default(now())
+
+  plano_id             String
+  plano                Plano     @relation(fields: [plano_id], references: [id])
+
+  usuarios             Usuario[]
+  cotacoes             Cotacao[]
+  clientes             ClienteTenant[]
+  tabelas_frete        TabelaFrete[]
+  uso_mensal           UsoMensal[]
+  instancia_zapi       InstanciaZapi?
+}
+
+// ─── USUÁRIOS ─────────────────────────────────────────────────────────────────
+
+model Usuario {
+  id               String    @id @default(cuid())
+  nome             String
+  email            String    @unique
+  senha_hash       String
+  perfil           Perfil    @default(OPERADOR)
+  ativo            Boolean   @default(true)
+  criado_em        DateTime  @default(now())
+
+  tenant_id        String?
+  tenant           Tenant?   @relation(fields: [tenant_id], references: [id])
+}
+
+enum Perfil {
+  ADMIN_SAAS
+  ADMIN_TENANT
+  OPERADOR
+}
+
+// ─── CLIENTES DAS TRANSPORTADORAS ─────────────────────────────────────────────
+
+model ClienteTenant {
+  id               String    @id @default(cuid())
+  telefone         String
+  nome             String?
+  criado_em        DateTime  @default(now())
+
+  tenant_id        String
+  tenant           Tenant    @relation(fields: [tenant_id], references: [id])
+
+  cotacoes         Cotacao[]
+
+  @@unique([tenant_id, telefone])
+}
+
+// ─── TABELA DE FRETE ──────────────────────────────────────────────────────────
+
+model TabelaFrete {
+  id               String    @id @default(cuid())
+  nome             String
+  origem_descricao String?   // ex: "São Bento do Sul/SC (Interior 1)"
+  transportadora   String?   // ex: "TodoBrasil"
+  ativa            Boolean   @default(true)
+  criado_em        DateTime  @default(now())
+
+  // Taxas gerais da tabela
+  taxa_despacho_centavos  Int?      // Taxa de Despacho em centavos
+  pedagio_por_100kg_centavos Int?   // Pedágio por fração de 100kg em centavos
+  gris_percentual_padrao  Float?    // GRIS % padrão (pode ser sobrescrito por região)
+  gris_minimo_centavos    Int?      // Valor mínimo do GRIS em centavos
+
+  tenant_id        String
+  tenant           Tenant    @relation(fields: [tenant_id], references: [id])
+
+  regioes          RegiaoFrete[]
+}
+
+// ─── REGIÕES DE DESTINO ───────────────────────────────────────────────────────
+// Cada linha da tabela de frete = uma região
+// Ex: "Manaus", "Interior 1 AM", "São Paulo", "Interior SP 2"
+
+model RegiaoFrete {
+  id                    String    @id @default(cuid())
+  nome                  String    // ex: "Manaus", "Interior 1"
+  uf                    String    // ex: "AM", "SP", "RJ"
+  regiao_brasil         String?   // ex: "NORTE", "SUDESTE", "SUL"
+
+  // Prazo de entrega
+  prazo_min_dias        Int
+  prazo_max_dias        Int
+
+  // Taxas específicas desta região (sobrescreve o padrão da tabela)
+  ad_valorem_percentual Float     // % sobre valor da NF (ex: 0.91 = 0,91%)
+  ad_valorem_minimo_centavos Int? // valor mínimo do ad valorem em centavos
+  gris_percentual       Float?    // se diferente do padrão da tabela
+  gris_minimo_centavos  Int?
+
+  // Preço por kg excedente (acima da última faixa)
+  preco_kg_excedente_centavos Int? // em centavos por kg
+
+  tabela_id             String
+  tabela                TabelaFrete @relation(fields: [tabela_id], references: [id])
+
+  faixas_peso           FaixaPrecoRegiao[]
+}
+
+// ─── FAIXAS DE PESO POR REGIÃO ────────────────────────────────────────────────
+// Cada região tem N faixas (ex: 0-30kg, 30-50kg, 50-70kg, 70-100kg)
+
+model FaixaPrecoRegiao {
+  id               String    @id @default(cuid())
+  peso_min_g       Int       // peso mínimo em gramas
+  peso_max_g       Int       // peso máximo em gramas (-1 = sem limite / excedente)
+  preco_centavos   Int       // preço fixo para essa faixa em centavos
+
+  regiao_id        String
+  regiao           RegiaoFrete @relation(fields: [regiao_id], references: [id])
+}
+
+// ─── COTAÇÕES ─────────────────────────────────────────────────────────────────
+
+model Cotacao {
+  id                    String        @id @default(cuid())
+  cep_origem            String
+  cep_destino           String
+  cidade_origem         String?
+  cidade_destino        String?
+  estado_origem         String?
+  estado_destino        String?
+  peso_g                Int
+  valor_nf_centavos     Int?          // valor da NF para calcular ad valorem
+  altura_cm             Int?
+  largura_cm            Int?
+  comprimento_cm        Int?
+
+  // Resultado do cálculo
+  frete_peso_centavos   Int?          // FP calculado
+  ad_valorem_centavos   Int?          // Ad valorem calculado
+  gris_centavos         Int?          // GRIS calculado
+  pedagio_centavos      Int?          // Pedágio calculado
+  taxa_despacho_centavos Int?         // Taxa de despacho
+  valor_total_centavos  Int           // Total final
+  prazo_dias            Int
+
+  regiao_id             String?       // qual região foi usada no cálculo
+  status                StatusCotacao @default(PENDENTE)
+  criado_em             DateTime      @default(now())
+  atualizado_em         DateTime      @updatedAt
+
+  tenant_id             String
+  tenant                Tenant        @relation(fields: [tenant_id], references: [id])
+
+  cliente_id            String?
+  cliente               ClienteTenant? @relation(fields: [cliente_id], references: [id])
+}
+
+enum StatusCotacao {
+  PENDENTE
+  CONFIRMADA
+  CANCELADA
+  EXPIRADA
+}
+
+// ─── USO MENSAL ───────────────────────────────────────────────────────────────
+
+model UsoMensal {
+  id               String    @id @default(cuid())
+  ano              Int
+  mes              Int
+  total_cotacoes   Int       @default(0)
+  atualizado_em    DateTime  @updatedAt
+
+  tenant_id        String
+  tenant           Tenant    @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, ano, mes])
+}
+
+// ─── INSTÂNCIA ZAPI ───────────────────────────────────────────────────────────
+
+model InstanciaZapi {
+  id               String    @id @default(cuid())
+  instance_id      String
+  token            String
+  client_token     String
+  conectada        Boolean   @default(false)
+  criado_em        DateTime  @default(now())
+
+  tenant_id        String    @unique
+  tenant           Tenant    @relation(fields: [tenant_id], references: [id])
+}
