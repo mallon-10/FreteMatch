@@ -241,7 +241,7 @@ async function main() {
     update: {},
     create: {
       nome: 'Rodolog Transportes',
-      cnpj: '00.000.000/0001-00',
+      cnpj: '00.000.000/0001-01',
       slug: 'rodolog',
       email: 'admin@rodolog.com.br',
       telefone_responsavel: '',
