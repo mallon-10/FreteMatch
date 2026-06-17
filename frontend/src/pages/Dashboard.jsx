@@ -21,20 +21,7 @@ export default function Dashboard() {
     setResultado(null);
     setCalculando(true);
     try {
-      // Busca CEP no frontend para não depender de saída de rede do backend
-      const cepLimpo = form.cep_destino.replace(/\D/g, '');
-      if (cepLimpo.length !== 8) throw new Error('CEP inválido');
-      const cepRes = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-      const cepData = await cepRes.json();
-      if (cepData.erro) throw new Error('CEP não encontrado');
-
-      const { data } = await api.post('/cotacoes/calcular', {
-        uf_destino: cepData.uf,
-        cidade_destino: cepData.localidade,
-        cep_destino: form.cep_destino,
-        peso_kg: form.peso_kg,
-        valor_nf: form.valor_nf,
-      });
+      const { data } = await api.post('/cotacoes/calcular', form);
       setResultado(data);
     } catch (err) {
       setErroCalc(err.response?.data?.erro || err.message || 'Erro ao calcular.');

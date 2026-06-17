@@ -321,6 +321,59 @@ async function main() {
   }
 
   console.log(`✅ Tabela TodoBrasil criada com ${totalRegioes} regiões`);
+
+  // ── Tabela TodoBrasil para Rodolog (mesma tabela, tenant diferente) ──
+  const tabelaRodologExistente = await prisma.tabelaFrete.findFirst({
+    where: { tenant_id: tenantRodolog.id, nome: 'TodoBrasil — São Bento do Sul/SC' },
+  });
+  if (tabelaRodologExistente) {
+    const regioes = await prisma.regiaoFrete.findMany({ where: { tabela_id: tabelaRodologExistente.id } });
+    for (const reg of regioes) {
+      await prisma.faixaPrecoRegiao.deleteMany({ where: { regiao_id: reg.id } });
+    }
+    await prisma.regiaoFrete.deleteMany({ where: { tabela_id: tabelaRodologExistente.id } });
+    await prisma.tabelaFrete.delete({ where: { id: tabelaRodologExistente.id } });
+  }
+
+  const tabelaRodolog = await prisma.tabelaFrete.create({
+    data: {
+      nome: 'TodoBrasil — São Bento do Sul/SC',
+      origem_descricao: 'São Bento do Sul/SC (Interior 1)',
+      transportadora: 'TodoBrasil',
+      ativa: true,
+      taxa_despacho_centavos: r(30.00),
+      pedagio_por_100kg_centavos: r(7.00),
+      gris_percentual_padrao: 0.22,
+      gris_minimo_centavos: r(2.50),
+      tenant_id: tenantRodolog.id,
+    },
+  });
+
+  for (const reg of REGIOES_TODOBRASIL) {
+    await prisma.regiaoFrete.create({
+      data: {
+        nome: reg.nome,
+        uf: reg.uf,
+        regiao_brasil: reg.regiao,
+        prazo_min_dias: reg.prazo[0],
+        prazo_max_dias: reg.prazo[1],
+        ad_valorem_percentual: reg.adv,
+        ad_valorem_minimo_centavos: r(5.66),
+        gris_percentual: reg.gris,
+        gris_minimo_centavos: r(2.50),
+        preco_kg_excedente_centavos: r(reg.exc),
+        tabela_id: tabelaRodolog.id,
+        faixas_peso: {
+          create: FAIXAS_KG.map((faixa, i) => ({
+            peso_min_g: faixa.min,
+            peso_max_g: faixa.max,
+            preco_centavos: r(reg.fp[i]),
+          })),
+        },
+      },
+    });
+  }
+  console.log('✅ Tabela TodoBrasil criada para Rodolog');
   console.log('\n🚀 Seed concluído!');
 }
 

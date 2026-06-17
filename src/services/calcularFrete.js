@@ -5,10 +5,19 @@ const prisma = new PrismaClient();
 export async function buscarCep(cep) {
   const limpo = cep.replace(/\D/g, '');
   if (limpo.length !== 8) throw new Error('CEP inválido');
-  const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
-  const data = await res.json();
-  if (data.erro) throw new Error('CEP não encontrado');
-  return { cep: data.cep, cidade: data.localidade, uf: data.uf, bairro: data.bairro };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`, { signal: controller.signal });
+    const data = await res.json();
+    if (data.erro) throw new Error('CEP não encontrado');
+    return { cep: data.cep, cidade: data.localidade, uf: data.uf, bairro: data.bairro };
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Timeout ao buscar CEP — tente novamente');
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 /**
