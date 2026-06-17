@@ -235,6 +235,33 @@ async function main() {
   });
   console.log('✅ Tenant Smartech criado — admin@smartech.com.br / smartech123');
 
+  // ── Tenant Rodolog ──
+  const tenantRodolog = await prisma.tenant.upsert({
+    where: { slug: 'rodolog' },
+    update: {},
+    create: {
+      nome: 'Rodolog Transportes',
+      slug: 'rodolog',
+      email: 'admin@rodolog.com.br',
+      telefone_responsavel: '',
+      plano_id: growth.id,
+    },
+  });
+
+  const senhaRodolog = await bcrypt.hash('rodolog123', 10);
+  await prisma.usuario.upsert({
+    where: { email: 'admin@rodolog.com.br' },
+    update: {},
+    create: {
+      nome: 'Admin Rodolog',
+      email: 'admin@rodolog.com.br',
+      senha_hash: senhaRodolog,
+      perfil: 'ADMIN_TENANT',
+      tenant_id: tenantRodolog.id,
+    },
+  });
+  console.log('✅ Tenant Rodolog criado — admin@rodolog.com.br / rodolog123');
+
   // ── Tabela TodoBrasil ──
   // Deleta tabela existente para recriar (seed idempotente via slug)
   const tabelaExistente = await prisma.tabelaFrete.findFirst({
