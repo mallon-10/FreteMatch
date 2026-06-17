@@ -2,24 +2,6 @@ import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import api from '../api';
 
-function Card({ children, className = '' }) {
-  return (
-    <div className={`bg-gray-900 border border-gray-800 rounded-2xl p-6 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function StatCard({ label, value, sub, color = 'text-white' }) {
-  return (
-    <Card>
-      <p className="text-gray-400 text-sm mb-1">{label}</p>
-      <p className={`text-3xl font-bold ${color}`}>{value}</p>
-      {sub && <p className="text-gray-500 text-xs mt-1">{sub}</p>}
-    </Card>
-  );
-}
-
 export default function Dashboard() {
   const [resumo, setResumo] = useState(null);
   const [cotacoes, setCotacoes] = useState([]);
@@ -53,50 +35,85 @@ export default function Dashboard() {
     window.location.href = '/login';
   }
 
+  function formatCep(v) {
+    const n = v.replace(/\D/g, '').slice(0, 8);
+    return n.length > 5 ? `${n.slice(0, 5)}-${n.slice(5)}` : n;
+  }
+
   const percentual = resumo?.percentual_uso ?? 0;
   const corBarra = percentual >= 80 ? '#ef4444' : '#3b82f6';
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-bold">FreteMatch</h1>
-        <button onClick={sair} className="text-sm text-gray-400 hover:text-white transition">Sair</button>
-      </header>
+    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#f1f5f9', fontFamily: 'system-ui, sans-serif' }}>
 
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+      {/* Header */}
+      <div style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>FreteMatch</span>
+        <button
+          onClick={sair}
+          style={{ fontSize: 14, color: '#94a3b8', background: 'none', border: '1px solid #334155', borderRadius: 8, padding: '6px 16px', cursor: 'pointer' }}
+        >
+          Sair
+        </button>
+      </div>
+
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard
-            label="Cotações este mês"
-            value={resumo?.total_cotacoes ?? '—'}
-            sub={`Plano ${resumo?.plano ?? '...'}`}
-          />
-          <StatCard
-            label="Limite do plano"
-            value={resumo?.limite_plano ?? '—'}
-            sub="cotações/mês"
-          />
-          <StatCard
-            label="Uso atual"
-            value={resumo ? `${percentual}%` : '—'}
-            sub={percentual >= 80 ? 'Atenção: próximo do limite' : 'Dentro do limite'}
-            color={percentual >= 80 ? 'text-red-400' : 'text-green-400'}
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}>
+          {[
+            {
+              label: 'Cotações este mês',
+              value: resumo?.total_cotacoes ?? '—',
+              sub: `Plano ${resumo?.plano ?? '...'}`,
+              color: '#f1f5f9',
+            },
+            {
+              label: 'Limite do plano',
+              value: resumo?.limite_plano ?? '—',
+              sub: 'cotações/mês',
+              color: '#f1f5f9',
+            },
+            {
+              label: 'Uso atual',
+              value: resumo ? `${percentual}%` : '—',
+              sub: percentual >= 80 ? '⚠️ Próximo do limite' : 'Dentro do limite',
+              color: percentual >= 80 ? '#f87171' : '#4ade80',
+            },
+          ].map((s) => (
+            <div key={s.label} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 24 }}>
+              <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>{s.label}</p>
+              <p style={{ fontSize: 32, fontWeight: 700, color: s.color, marginBottom: 4 }}>{s.value}</p>
+              <p style={{ fontSize: 12, color: '#64748b' }}>{s.sub}</p>
+            </div>
+          ))}
         </div>
+
+        {/* Barra de uso */}
+        {resumo && (
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 24, marginBottom: 32 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>Uso do plano</span>
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>{resumo.total_cotacoes} / {resumo.limite_plano}</span>
+            </div>
+            <div style={{ height: 8, backgroundColor: '#334155', borderRadius: 99 }}>
+              <div style={{ height: 8, width: `${Math.min(percentual, 100)}%`, backgroundColor: corBarra, borderRadius: 99, transition: 'width 0.3s' }} />
+            </div>
+          </div>
+        )}
 
         {/* Gráfico */}
         {resumo?.volume_diario?.length > 0 && (
-          <Card>
-            <h2 className="text-sm text-gray-400 mb-4">Cotações por dia — mês atual</h2>
-            <ResponsiveContainer width="100%" height={180}>
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 24, marginBottom: 32 }}>
+            <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 16 }}>Cotações por dia — mês atual</p>
+            <ResponsiveContainer width="100%" height={160}>
               <BarChart data={resumo.volume_diario}>
-                <XAxis dataKey="dia" tick={{ fill: '#6b7280', fontSize: 11 }} tickFormatter={(v) => v.slice(8)} />
-                <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} allowDecimals={false} />
+                <XAxis dataKey="dia" tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v) => v.slice(8)} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 11 }} allowDecimals={false} />
                 <Tooltip
-                  contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
-                  labelStyle={{ color: '#9ca3af' }}
-                  itemStyle={{ color: '#fff' }}
+                  contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8 }}
+                  labelStyle={{ color: '#94a3b8' }}
+                  itemStyle={{ color: '#f1f5f9' }}
                 />
                 <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                   {resumo.volume_diario.map((_, i) => (
@@ -105,117 +122,136 @@ export default function Dashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </Card>
+          </div>
         )}
 
         {/* Calculadora */}
-        <Card>
-          <h2 className="text-sm text-gray-400 mb-1">Calcular frete</h2>
-          <p className="text-xs text-gray-600 mb-4">Origem: São Bento do Sul / SC</p>
-          <form onSubmit={calcular} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">CEP de destino</label>
-              <input
-                value={form.cep_destino}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '').slice(0, 8);
-                  const fmt = v.length > 5 ? `${v.slice(0, 5)}-${v.slice(5)}` : v;
-                  setForm({ ...form, cep_destino: fmt });
-                }}
-                placeholder="00000-000"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                required
-              />
+        <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 24, marginBottom: 32 }}>
+          <p style={{ fontSize: 15, fontWeight: 600, color: '#f1f5f9', marginBottom: 4 }}>Calcular frete</p>
+          <p style={{ fontSize: 12, color: '#64748b', marginBottom: 20 }}>Origem: São Bento do Sul / SC</p>
+
+          <form onSubmit={calcular}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6 }}>CEP de destino *</label>
+                <input
+                  value={form.cep_destino}
+                  onChange={(e) => setForm({ ...form, cep_destino: formatCep(e.target.value) })}
+                  placeholder="00000-000"
+                  required
+                  style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #475569', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#f1f5f9', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Peso (kg) *</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={form.peso_kg}
+                  onChange={(e) => setForm({ ...form, peso_kg: e.target.value })}
+                  placeholder="Ex: 40"
+                  required
+                  style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #475569', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#f1f5f9', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Valor NF (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.valor_nf}
+                  onChange={(e) => setForm({ ...form, valor_nf: e.target.value })}
+                  placeholder="Ex: 1500"
+                  style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #475569', borderRadius: 10, padding: '10px 14px', fontSize: 14, color: '#f1f5f9', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Peso (kg)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={form.peso_kg}
-                onChange={(e) => setForm({ ...form, peso_kg: e.target.value })}
-                placeholder="10"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Valor NF (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={form.valor_nf}
-                onChange={(e) => setForm({ ...form, valor_nf: e.target.value })}
-                placeholder="1000"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            <div className="sm:col-span-3">
-              <button
-                type="submit"
-                disabled={calculando}
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg px-6 py-2 text-sm font-medium transition"
-              >
-                {calculando ? 'Calculando...' : 'Calcular'}
-              </button>
-            </div>
+
+            <button
+              type="submit"
+              disabled={calculando}
+              style={{ backgroundColor: calculando ? '#334155' : '#2563eb', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: calculando ? 'not-allowed' : 'pointer' }}
+            >
+              {calculando ? 'Calculando...' : 'Calcular frete'}
+            </button>
           </form>
 
-          {erroCalc && <p className="text-red-400 text-sm mt-3">{erroCalc}</p>}
-
-          {resultado && (
-            <div className="mt-4 bg-gray-800 rounded-xl p-4 text-sm space-y-1">
-              <p className="text-gray-400">Destino: <span className="text-white">{resultado.destino.cidade} — {resultado.destino.uf}</span></p>
-              <p className="text-gray-400">Região: <span className="text-white">{resultado.regiao}</span></p>
-              <p className="text-gray-400">Prazo: <span className="text-white">{resultado.prazo}</span></p>
-              <div className="border-t border-gray-700 pt-2 mt-2 space-y-1">
-                <p className="text-gray-400">Frete peso: <span className="text-white">{resultado.breakdown.frete_peso}</span></p>
-                <p className="text-gray-400">Ad valorem: <span className="text-white">{resultado.breakdown.ad_valorem}</span></p>
-                <p className="text-gray-400">GRIS: <span className="text-white">{resultado.breakdown.gris}</span></p>
-                <p className="text-gray-400">Pedágio: <span className="text-white">{resultado.breakdown.pedagio}</span></p>
-                <p className="text-gray-400">Taxa despacho: <span className="text-white">{resultado.breakdown.taxa_despacho}</span></p>
-              </div>
-              <p className="text-lg font-bold text-green-400 pt-1">Total: {resultado.total}</p>
+          {erroCalc && (
+            <div style={{ marginTop: 16, backgroundColor: '#450a0a', border: '1px solid #7f1d1d', borderRadius: 10, padding: '12px 16px', fontSize: 13, color: '#fca5a5' }}>
+              {erroCalc}
             </div>
           )}
-        </Card>
+
+          {resultado && (
+            <div style={{ marginTop: 20, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                <div>
+                  <p style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Destino</p>
+                  <p style={{ fontSize: 14, color: '#f1f5f9', fontWeight: 600 }}>{resultado.destino.cidade} — {resultado.destino.uf}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Região</p>
+                  <p style={{ fontSize: 14, color: '#f1f5f9', fontWeight: 600 }}>{resultado.regiao}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Prazo</p>
+                  <p style={{ fontSize: 14, color: '#f1f5f9', fontWeight: 600 }}>{resultado.prazo}</p>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid #334155', paddingTop: 16 }}>
+                {[
+                  ['Frete peso', resultado.breakdown.frete_peso],
+                  ['Ad valorem', resultado.breakdown.ad_valorem],
+                  ['GRIS', resultado.breakdown.gris],
+                  ['Pedágio', resultado.breakdown.pedagio],
+                  ['Taxa despacho', resultado.breakdown.taxa_despacho],
+                ].map(([label, val]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, color: '#94a3b8' }}>{label}</span>
+                    <span style={{ fontSize: 13, color: '#f1f5f9' }}>{val}</span>
+                  </div>
+                ))}
+                <div style={{ borderTop: '1px solid #334155', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Total</span>
+                  <span style={{ fontSize: 20, fontWeight: 700, color: '#4ade80' }}>{resultado.total}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Lista de cotações */}
         {cotacoes.length > 0 && (
-          <Card>
-            <h2 className="text-sm text-gray-400 mb-4">Últimas cotações</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-500 text-left border-b border-gray-800">
-                    <th className="pb-2 pr-4">Data</th>
-                    <th className="pb-2 pr-4">Destino</th>
-                    <th className="pb-2 pr-4">Peso</th>
-                    <th className="pb-2">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cotacoes.map((c) => (
-                    <tr key={c.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                      <td className="py-2 pr-4 text-gray-400">
-                        {new Date(c.criado_em).toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="py-2 pr-4">{c.uf_destino || '—'}</td>
-                      <td className="py-2 pr-4">{c.peso_kg ? `${c.peso_kg} kg` : '—'}</td>
-                      <td className="py-2 text-green-400 font-medium">
-                        {c.valor_total_centavos
-                          ? `R$ ${(c.valor_total_centavos / 100).toFixed(2).replace('.', ',')}`
-                          : '—'}
-                      </td>
-                    </tr>
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, padding: 24 }}>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>Últimas cotações</p>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #334155' }}>
+                  {['Data', 'Destino', 'Peso', 'Total'].map((h) => (
+                    <th key={h} style={{ textAlign: 'left', padding: '0 0 10px 0', color: '#64748b', fontWeight: 500, paddingRight: 16 }}>{h}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                </tr>
+              </thead>
+              <tbody>
+                {cotacoes.map((c) => (
+                  <tr key={c.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                    <td style={{ padding: '10px 16px 10px 0', color: '#94a3b8' }}>{new Date(c.criado_em).toLocaleDateString('pt-BR')}</td>
+                    <td style={{ padding: '10px 16px 10px 0', color: '#f1f5f9' }}>{c.uf_destino || '—'}</td>
+                    <td style={{ padding: '10px 16px 10px 0', color: '#f1f5f9' }}>{c.peso_kg ? `${c.peso_kg} kg` : '—'}</td>
+                    <td style={{ padding: '10px 0', color: '#4ade80', fontWeight: 600 }}>
+                      {c.valor_total_centavos ? `R$ ${(c.valor_total_centavos / 100).toFixed(2).replace('.', ',')}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
-      </main>
+      </div>
     </div>
   );
 }
