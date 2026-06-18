@@ -6,13 +6,30 @@ const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
 function carregarGoogleMaps(apiKey) {
   return new Promise((resolve) => {
-    if (window.google?.maps) return resolve(window.google.maps);
+    if (window.google?.maps?.DirectionsService) return resolve(window.google.maps);
+    // Remove script anterior se existir
+    const old = document.getElementById('gmaps-script');
+    if (old) old.remove();
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
+    script.id = 'gmaps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
     script.async = true;
+    script.defer = true;
     script.onload = () => resolve(window.google.maps);
     document.head.appendChild(script);
   });
+}
+
+function criarIconeCustom(maps, cor, numero) {
+  return {
+    path: maps.SymbolPath.CIRCLE,
+    fillColor: cor,
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2.5,
+    scale: 16,
+    labelOrigin: new maps.Point(0, 0),
+  };
 }
 
 function MapaRota({ sequencia, cargas }) {
@@ -22,27 +39,41 @@ function MapaRota({ sequencia, cargas }) {
     if (!sequencia || sequencia.length < 2 || !ref.current) return;
 
     carregarGoogleMaps(GOOGLE_KEY).then((maps) => {
+      const mapStyles = [
+        { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+        { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+        { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
+        { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#475569' }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
+        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+      ];
+
       const map = new maps.Map(ref.current, {
-        zoom: 6,
-        center: { lat: -15.7801, lng: -47.9292 },
+        zoom: 5,
+        center: { lat: -22, lng: -46 },
         mapTypeId: 'roadmap',
-        styles: [
-          { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
-          { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-          { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
-          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
-          { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#475569' }] },
-          { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
-          { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-        ],
+        styles: mapStyles,
+        disableDefaultUI: false,
+        zoomControl: true,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
       });
 
-      // Desenha a rota com DirectionsService
+      const coletas = new Set(cargas.map(c => c.end_origem));
+      const entregas = new Set(cargas.map(c => c.end_destino));
+
       const directionsService = new maps.DirectionsService();
       const directionsRenderer = new maps.DirectionsRenderer({
         map,
-        suppressMarkers: true, // usa marcadores customizados
-        polylineOptions: { strokeColor: '#3b82f6', strokeWeight: 4, strokeOpacity: 0.8 },
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: '#3b82f6',
+          strokeWeight: 5,
+          strokeOpacity: 0.85,
+        },
       });
 
       const waypoints = sequencia.slice(1, -1).map(address => ({
@@ -50,76 +81,59 @@ function MapaRota({ sequencia, cargas }) {
         stopover: true,
       }));
 
-      directionsService.route({
-        origin: sequencia[0],
-        destination: sequencia[sequencia.length - 1],
-        waypoints,
-        travelMode: maps.TravelMode.DRIVING,
-      }, (result, status) => {
-        if (status === 'OK') {
+      directionsService.route(
+        {
+          origin: sequencia[0],
+          destination: sequencia[sequencia.length - 1],
+          waypoints,
+          travelMode: maps.TravelMode.DRIVING,
+          region: 'BR',
+        },
+        (result, status) => {
+          if (status !== 'OK') {
+            console.error('Directions error:', status);
+            return;
+          }
           directionsRenderer.setDirections(result);
 
-          // Coleta todos os pontos de coleta e entrega de cada carga
-          const coletas = new Set(cargas.map(c => c.end_origem));
-          const entregas = new Set(cargas.map(c => c.end_destino));
+          // Extrai coordenadas reais dos legs retornados pelo Google
+          const legs = result.routes[0].legs;
+          // Pontos na ordem: origem do leg[0], depois destino de cada leg
+          const pontos = [legs[0].start_location, ...legs.map(l => l.end_location)];
 
-          const geocoder = new maps.Geocoder();
+          pontos.forEach((pos, i) => {
+            const address = sequencia[i];
+            const isColeta = coletas.has(address);
+            const isEntrega = entregas.has(address);
+            const isAmbos = isColeta && isEntrega;
 
-          sequencia.forEach((address, i) => {
-            geocoder.geocode({ address }, (results, geoStatus) => {
-              if (geoStatus !== 'OK' || !results[0]) return;
-              const pos = results[0].geometry.location;
+            let cor, titulo;
+            if (isAmbos)        { cor = '#f59e0b'; titulo = 'Coleta + Entrega'; }
+            else if (isColeta)  { cor = '#22c55e'; titulo = 'Coleta'; }
+            else                { cor = '#ef4444'; titulo = 'Entrega'; }
 
-              const isColeta = coletas.has(address);
-              const isEntrega = entregas.has(address);
-              const isAmbos = isColeta && isEntrega;
-
-              // Cor e label do marcador
-              let bgColor, label, title;
-              if (isAmbos) {
-                bgColor = '#f59e0b'; label = '⇅'; title = 'Coleta e Entrega';
-              } else if (isColeta) {
-                bgColor = '#22c55e'; label = '▲'; title = `Coleta ${i + 1}`;
-              } else {
-                bgColor = '#ef4444'; label = '●'; title = `Entrega ${i + 1}`;
-              }
-
-              const markerEl = document.createElement('div');
-              markerEl.style.cssText = `
-                background: ${bgColor};
-                color: white;
-                border-radius: 50%;
-                width: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 13px;
-                font-weight: 700;
-                border: 3px solid white;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-                cursor: pointer;
-                font-family: system-ui, sans-serif;
-              `;
-              markerEl.innerText = i + 1;
-              markerEl.title = title;
-
-              new maps.marker.AdvancedMarkerElement({
-                position: pos,
-                map,
-                content: markerEl,
-                title,
-              });
+            new maps.Marker({
+              position: pos,
+              map,
+              title: `${titulo} — Parada ${i + 1}`,
+              label: {
+                text: String(i + 1),
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: 'bold',
+              },
+              icon: criarIconeCustom(maps, cor, i + 1),
+              zIndex: 100 + i,
             });
           });
         }
-      });
+      );
     });
   }, [sequencia, cargas]);
 
   return (
     <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden', marginBottom: 24 }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #334155', display: 'flex', gap: 20, alignItems: 'center' }}>
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid #334155', display: 'flex', gap: 20, alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Legenda:</span>
         {[['#22c55e', 'Coleta'], ['#ef4444', 'Entrega'], ['#f59e0b', 'Coleta + Entrega']].map(([cor, label]) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -128,7 +142,7 @@ function MapaRota({ sequencia, cargas }) {
           </div>
         ))}
       </div>
-      <div ref={ref} style={{ width: '100%', height: 440 }} />
+      <div ref={ref} style={{ width: '100%', height: 460 }} />
     </div>
   );
 }
