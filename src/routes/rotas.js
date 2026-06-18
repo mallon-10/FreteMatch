@@ -14,8 +14,12 @@ router.post('/otimizar', async (req, res) => {
     const apiKey = process.env.GOOGLE_MAPS_KEY;
     if (!apiKey) return res.status(500).json({ erro: 'Google Maps Key não configurada' });
 
-    const waypoints = destinos.slice(0, -1); // todos menos o último
-    const destino_final = destinos[destinos.length - 1];
+    // Estratégia: origem fixa, todos os destinos como waypoints otimizáveis
+    // O Google retorna a ordem ideal em waypoint_order
+    // Usamos o primeiro destino como "destination" e os demais como waypoints
+    // para que todos possam ser reordenados livremente
+    const destino_final = destinos[0]; // placeholder — será substituído pelo otimizado
+    const waypoints = destinos.slice(1);
 
     const waypointsParam = waypoints.length > 0
       ? `&waypoints=optimize:true|${waypoints.map(encodeURIComponent).join('|')}`
