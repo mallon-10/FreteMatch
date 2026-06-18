@@ -6,6 +6,7 @@ import { rotasCotacao } from './routes/cotacoes.js';
 import { rotasWebhook } from './routes/webhook.js';
 import { rotasTenants } from './routes/tenants.js';
 import { rotasAdmin } from './routes/admin.js';
+import { rotasRotas } from './routes/rotas.js';
 import { autenticar } from './middlewares/autenticar.js';
 
 const app = express();
@@ -23,6 +24,7 @@ app.use('/webhook', rotasWebhook);
 app.use('/cotacoes', autenticar, rotasCotacao);
 app.use('/tenants', autenticar, rotasTenants);
 app.use('/admin', autenticar, rotasAdmin);
+app.use('/rotas', autenticar, rotasRotas);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

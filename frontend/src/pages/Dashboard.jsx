@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import api from '../api';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [resumo, setResumo] = useState(null);
   const [cotacoes, setCotacoes] = useState([]);
   const [form, setForm] = useState({ cep_destino: '', peso_kg: '', valor_nf: '' });
@@ -48,7 +50,17 @@ export default function Dashboard() {
 
       {/* Header */}
       <div style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>FreteMatch</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <span style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>FreteMatch</span>
+          <nav style={{ display: 'flex', gap: 8 }}>
+            <button style={{ fontSize: 14, color: '#f1f5f9', background: '#334155', border: 'none', cursor: 'pointer', padding: '6px 12px', borderRadius: 8, fontWeight: 600 }}>
+              Dashboard
+            </button>
+            <button onClick={() => navigate('/rotas')} style={{ fontSize: 14, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px', borderRadius: 8 }}>
+              Rotas
+            </button>
+          </nav>
+        </div>
         <button
           onClick={sair}
           style={{ fontSize: 14, color: '#94a3b8', background: 'none', border: '1px solid #334155', borderRadius: 8, padding: '6px 16px', cursor: 'pointer' }}
