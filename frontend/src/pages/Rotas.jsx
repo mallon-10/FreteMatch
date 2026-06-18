@@ -1,10 +1,137 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
 const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
-const SEGURO_PERCENTUAL = 0.003; // 0,3% ad valorem padrão mercado
+function carregarGoogleMaps(apiKey) {
+  return new Promise((resolve) => {
+    if (window.google?.maps) return resolve(window.google.maps);
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
+    script.async = true;
+    script.onload = () => resolve(window.google.maps);
+    document.head.appendChild(script);
+  });
+}
+
+function MapaRota({ sequencia, cargas }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!sequencia || sequencia.length < 2 || !ref.current) return;
+
+    carregarGoogleMaps(GOOGLE_KEY).then((maps) => {
+      const map = new maps.Map(ref.current, {
+        zoom: 6,
+        center: { lat: -15.7801, lng: -47.9292 },
+        mapTypeId: 'roadmap',
+        styles: [
+          { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+          { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+          { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
+          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
+          { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#475569' }] },
+          { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
+          { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        ],
+      });
+
+      // Desenha a rota com DirectionsService
+      const directionsService = new maps.DirectionsService();
+      const directionsRenderer = new maps.DirectionsRenderer({
+        map,
+        suppressMarkers: true, // usa marcadores customizados
+        polylineOptions: { strokeColor: '#3b82f6', strokeWeight: 4, strokeOpacity: 0.8 },
+      });
+
+      const waypoints = sequencia.slice(1, -1).map(address => ({
+        location: address,
+        stopover: true,
+      }));
+
+      directionsService.route({
+        origin: sequencia[0],
+        destination: sequencia[sequencia.length - 1],
+        waypoints,
+        travelMode: maps.TravelMode.DRIVING,
+      }, (result, status) => {
+        if (status === 'OK') {
+          directionsRenderer.setDirections(result);
+
+          // Coleta todos os pontos de coleta e entrega de cada carga
+          const coletas = new Set(cargas.map(c => c.end_origem));
+          const entregas = new Set(cargas.map(c => c.end_destino));
+
+          const geocoder = new maps.Geocoder();
+
+          sequencia.forEach((address, i) => {
+            geocoder.geocode({ address }, (results, geoStatus) => {
+              if (geoStatus !== 'OK' || !results[0]) return;
+              const pos = results[0].geometry.location;
+
+              const isColeta = coletas.has(address);
+              const isEntrega = entregas.has(address);
+              const isAmbos = isColeta && isEntrega;
+
+              // Cor e label do marcador
+              let bgColor, label, title;
+              if (isAmbos) {
+                bgColor = '#f59e0b'; label = '⇅'; title = 'Coleta e Entrega';
+              } else if (isColeta) {
+                bgColor = '#22c55e'; label = '▲'; title = `Coleta ${i + 1}`;
+              } else {
+                bgColor = '#ef4444'; label = '●'; title = `Entrega ${i + 1}`;
+              }
+
+              const markerEl = document.createElement('div');
+              markerEl.style.cssText = `
+                background: ${bgColor};
+                color: white;
+                border-radius: 50%;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 13px;
+                font-weight: 700;
+                border: 3px solid white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                cursor: pointer;
+                font-family: system-ui, sans-serif;
+              `;
+              markerEl.innerText = i + 1;
+              markerEl.title = title;
+
+              new maps.marker.AdvancedMarkerElement({
+                position: pos,
+                map,
+                content: markerEl,
+                title,
+              });
+            });
+          });
+        }
+      });
+    });
+  }, [sequencia, cargas]);
+
+  return (
+    <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden', marginBottom: 24 }}>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid #334155', display: 'flex', gap: 20, alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Legenda:</span>
+        {[['#22c55e', 'Coleta'], ['#ef4444', 'Entrega'], ['#f59e0b', 'Coleta + Entrega']].map(([cor, label]) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: cor, border: '2px solid white', flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
+          </div>
+        ))}
+      </div>
+      <div ref={ref} style={{ width: '100%', height: 440 }} />
+    </div>
+  );
+}
 
 function formatCep(v) {
   const n = v.replace(/\D/g, '').slice(0, 8);
@@ -36,6 +163,7 @@ async function buscarEnderecoPorCep(cep) {
 export default function Rotas() {
   const navigate = useNavigate();
   const [cargas, setCargas] = useState([cargaVazia(), cargaVazia()]);
+  const [cargasComEnderecos, setCargasComEnderecos] = useState([]);
   const [resultado, setResultado] = useState(null);
   const [calculando, setCalculando] = useState(false);
   const [erro, setErro] = useState('');
@@ -87,6 +215,7 @@ export default function Rotas() {
 
       const { data } = await api.post('/rotas/otimizar-cargas', { cargas: enderecosCarga });
       setResultado(data);
+      setCargasComEnderecos(enderecosCarga);
     } catch (err) {
       setErro(err.response?.data?.erro || err.message || 'Erro ao calcular rota.');
     } finally {
@@ -98,14 +227,6 @@ export default function Rotas() {
     localStorage.removeItem('token');
     window.location.href = '/login';
   }
-
-  const mapUrl = resultado
-    ? (() => {
-        const todos = resultado.sequencia;
-        if (todos.length < 2) return null;
-        return `https://www.google.com/maps/embed/v1/directions?key=${GOOGLE_KEY}&origin=${encodeURIComponent(todos[0])}&destination=${encodeURIComponent(todos[todos.length - 1])}&waypoints=${todos.slice(1, -1).map(encodeURIComponent).join('|')}&language=pt-BR`;
-      })()
-    : null;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#f1f5f9', fontFamily: 'system-ui, sans-serif' }}>
@@ -311,10 +432,8 @@ export default function Rotas() {
             </div>
 
             {/* Mapa */}
-            {mapUrl && (
-              <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 16, overflow: 'hidden', marginBottom: 24 }}>
-                <iframe src={mapUrl} width="100%" height="420" style={{ border: 'none', display: 'block' }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-              </div>
+            {resultado.sequencia?.length >= 2 && (
+              <MapaRota sequencia={resultado.sequencia} cargas={cargasComEnderecos} />
             )}
 
             {/* Botões */}
