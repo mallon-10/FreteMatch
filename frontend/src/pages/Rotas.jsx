@@ -10,8 +10,13 @@ function buscarEnderecoPorCep(cep) {
   return fetch(`https://viacep.com.br/ws/${limpo}/json/`)
     .then(r => r.json())
     .then(d => {
-      if (d.erro) throw new Error('CEP não encontrado');
-      return `${d.logradouro}, ${d.localidade} - ${d.uf}, Brasil`;
+      if (d.erro) throw new Error(`CEP ${cep} não encontrado`);
+      const partes = [];
+      if (d.logradouro) partes.push(d.logradouro);
+      if (d.bairro) partes.push(d.bairro);
+      partes.push(`${d.localidade} - ${d.uf}`);
+      partes.push('Brasil');
+      return partes.join(', ');
     });
 }
 
